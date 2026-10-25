@@ -141,11 +141,80 @@ export const holdings = {
 };
 
 // ---- Goals ----
+export interface RecommendedStock {
+  symbol: string;
+  name: string;
+  sector: string;
+  price: number;
+  oneYearReturnPct: number;
+  volatilityPct: number;
+  maxDrawdownPct: number;
+  rsi14: number | null;
+  trendStatus: 'STRONG_BULLISH' | 'MODERATE_GROWTH' | 'DEFENSIVE_COMPOUNDER' | 'RECOVERY';
+  fitReason: string;
+  suggestedAllocationPct: number;
+  targetHorizonNote: string;
+  portfolioRole?: 'DIRECT_REPLACEMENT' | 'DIVERSIFICATION' | 'MOMENTUM_BOOSTER' | 'DEFENSIVE_ANCHOR';
+}
+
+export interface PortfolioHoldingAudit {
+  holdingId: string;
+  ticker: string;
+  name: string;
+  currentValue: number;
+  weightPct: number;
+  sector: string;
+  status: 'UNDERPERFORMER' | 'AT_RISK' | 'STABLE' | 'OUTPERFORMER';
+  oneYearReturnPct: number;
+  volatilityPct: number;
+  maxDrawdownPct: number;
+  rsi14: number | null;
+  currentPrice: number;
+  verdict: 'DUMP_RECOMMENDED' | 'TRIM_OR_REPLACE' | 'HOLD_COMPOUND' | 'ACCUMULATE';
+  reason: string;
+  suggestedSwitchSymbol?: string;
+  suggestedSwitchName?: string;
+  capitalToReallocate?: number;
+}
+
+export interface GoalInvestmentPlan {
+  targetAmount: number;
+  targetDate: string;
+  timeHorizonYears: number;
+  monthsRemaining: number;
+  monthlyContribution: number;
+  totalPlannedCapital: number;
+  wealthDeficitToCompound: number;
+  requiredAnnualReturnPct: number;
+  marketTrendSummary: {
+    niftyStatus: string;
+    niftyCurrentPrice: number;
+    niftyOneYearReturnPct: number;
+    macroBackdrop: string;
+  };
+  recommendedStocks: RecommendedStock[];
+  portfolioHoldingsAudit?: PortfolioHoldingAudit[];
+  dumpList?: PortfolioHoldingAudit[];
+  healthyHoldings?: PortfolioHoldingAudit[];
+  portfolioTotalValue?: number;
+  totalCapitalFreedFromDump?: number;
+  riskCategory: 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE_GROWTH' | 'UNREALISTIC_REQUIRED_RETURN';
+  strategicAdvice: string;
+}
+
 export const goals = {
   list: () => get<{ goals: unknown[] }>('/goals'),
   create: (data: Record<string, unknown>) => post<{ goal: unknown }>('/goals', data),
   update: (id: string, data: Record<string, unknown>) => patch<{ goal: unknown }>(`/goals/${id}`, data),
   delete: (id: string) => del<{ message: string }>(`/goals/${id}`),
+  recommendInvestments: (data: {
+    targetAmount: number;
+    targetDate: string;
+    monthlyContribution: number;
+    reservedCash?: number;
+    currentSavings?: number;
+    portfolioId?: string;
+  }) => post<{ recommendation: GoalInvestmentPlan }>('/goals/recommend-investments', data),
 };
 
 // ---- Analysis ----
@@ -319,6 +388,27 @@ export interface ButterflyAnalysisResult {
     dataFreshnessNotice: string;
     statisticalConfidenceScore: number;
   };
+  contagionPaths?: Array<{
+    holdingId: string;
+    holdingName: string;
+    ticker: string;
+    sector: string;
+    standardBetaImpactPct: number;
+    contagionAmplifiedImpactPct: number;
+    hiddenRiskDelta: number;
+    isNonObviousVictim: boolean;
+    hops: Array<{
+      hopNumber: number;
+      trigger: string;
+      transmission: string;
+      estimatedImpactPct: number;
+      lagDays: number;
+      hopType: 'direct' | 'indirect' | 'demand_side' | 'credit_channel' | 'sentiment';
+    }>;
+    worstCaseContagionPct: number;
+    bestCaseContagionPct: number;
+    hedgeRecommendation?: string;
+  }>;
 }
 
 export const butterfly = {
@@ -355,4 +445,54 @@ export const butterfly = {
         }>;
       };
     }>('/butterfly/shock-immunity', data),
+};
+
+export interface CopilotChatResponse {
+  summaryPoints: string[];
+  detailedAnalysis?: {
+    type: 'STOCK_QUOTE' | 'STOCK_SWITCH' | 'SCENARIO_SIMULATION' | 'MACRO_SECTOR' | 'PORTFOLIO_AUDIT' | 'HISTORICAL_RANKING' | 'MULTI_COMPARE' | 'EVENT_NEWS' | 'EDUCATIONAL';
+    quote?: {
+      symbol: string;
+      name: string;
+      exchange: string;
+      currency: string;
+      price: number;
+      change: number;
+      changePercent: number;
+      open: number;
+      dayHigh: number;
+      dayLow: number;
+      previousClose: number;
+      volume: number;
+      fiftyTwoWeekHigh: number;
+      fiftyTwoWeekLow: number;
+      timestamp: string;
+      isRealTime: boolean;
+      dataSource: string;
+      historicalCloses: { date: string; price: number; volume: number }[];
+    };
+    technicals?: {
+      rsi14: number | null;
+      sma20: number | null;
+      sma50: number | null;
+      sma200: number | null;
+      annualizedVolatilityPct: number;
+      maxDrawdownPct: number;
+      supportEstimate: number | null;
+      resistanceEstimate: number | null;
+    };
+    switchComparison?: any;
+    simulation?: any;
+    macroSnapshot?: any;
+    assumptions?: string[];
+    sources: string[];
+    asOf: string;
+    freshnessLabel: string;
+  };
+  recommendedPrompts?: string[];
+}
+
+export const copilot = {
+  chat: (data: { message: string; portfolioId?: string }) =>
+    post<CopilotChatResponse>('/copilot/chat', data),
 };

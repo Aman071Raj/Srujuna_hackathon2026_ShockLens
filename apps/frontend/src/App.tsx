@@ -14,7 +14,6 @@ import FinancialGoals from './pages/app/FinancialGoals';
 import ScenarioLab from './pages/app/ScenarioLab';
 import StockSwitchAnalyzer from './pages/app/StockSwitchAnalyzer';
 import ButterflyEffectEngine from './pages/app/ButterflyEffectEngine';
-import ShockImmunity from './pages/app/ShockImmunity';
 import Reports from './pages/app/Reports';
 import Settings from './pages/app/Settings';
 
@@ -69,7 +68,6 @@ export default function App() {
           <Route path="overview" element={<Overview />} />
           <Route path="portfolio" element={<PortfolioManager />} />
           <Route path="butterfly" element={<ButterflyEffectEngine />} />
-          <Route path="immunity" element={<ShockImmunity />} />
           <Route path="switch-analyzer" element={<StockSwitchAnalyzer />} />
           <Route path="goals" element={<FinancialGoals />} />
           <Route path="scenarios" element={<ScenarioLab />} />

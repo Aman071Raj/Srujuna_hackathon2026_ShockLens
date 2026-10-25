@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import StockLogo from '../../components/StockLogo';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { portfolios as portfoliosApi, holdings as holdingsApi } from '../../lib/api';
 import { formatCurrency } from '../../lib/utils';
@@ -37,9 +38,12 @@ function HoldingRow({
   return (
     <tr className="border-b border-black/10 hover:bg-yellow/10">
       <td className="px-4 py-3">
-        <div>
-          <p className="font-heading font-semibold text-sm">{holding.name}</p>
-          {holding.ticker && <p className="font-body text-xs text-muted-foreground">{holding.ticker}</p>}
+        <div className="flex items-center gap-2">
+          <StockLogo ticker={holding.ticker} name={holding.name} size="sm" className="shrink-0" />
+          <div>
+            <p className="font-heading font-semibold text-sm">{holding.name}</p>
+            {holding.ticker && <p className="font-body text-xs text-muted-foreground">{holding.ticker}</p>}
+          </div>
         </div>
       </td>
       <td className="px-4 py-3">

@@ -5,6 +5,31 @@ import {
   HoldingImpact,
   MacroIndicator,
 } from './types';
+
+// ---- Contagion Path Types ----
+export interface ContagionHop {
+  hopNumber: number;
+  trigger: string;
+  transmission: string;
+  estimatedImpactPct: number;
+  lagDays: number;
+  hopType: 'direct' | 'indirect' | 'demand_side' | 'credit_channel' | 'sentiment';
+}
+
+export interface ContagionPath {
+  holdingId: string;
+  holdingName: string;
+  ticker: string;
+  sector: string;
+  standardBetaImpactPct: number;
+  contagionAmplifiedImpactPct: number;
+  hiddenRiskDelta: number;
+  isNonObviousVictim: boolean;
+  hops: ContagionHop[];
+  worstCaseContagionPct: number;
+  bestCaseContagionPct: number;
+  hedgeRecommendation?: string;
+}
 import { getAllMacroBaselines } from './marketData';
 
 export interface RealtimeRiskFactors {
@@ -39,7 +64,7 @@ export interface RealtimeButterflyEngineInput {
  */
 export async function runRealtimeButterflyEngine(
   input: RealtimeButterflyEngineInput,
-): Promise<ButterflyAnalysisResult & { activeRealtimeRisks: string[] }> {
+): Promise<ButterflyAnalysisResult & { activeRealtimeRisks: string[]; contagionPaths: ContagionPath[] }> {
   const baselines = await getAllMacroBaselines();
   const holdings = input.portfolioHoldings || [];
 
@@ -47,6 +72,7 @@ export async function runRealtimeButterflyEngine(
   const crudeChange = baselines['CL=F']?.changePercent || 12.06;
   const usdinr = baselines['INR=X']?.latestPrice || 94.94;
   const nifty = baselines['^NSEI']?.latestPrice || 22600;
+  const niftyChange = baselines['^NSEI']?.changePercent || -2.36;
   const bankNifty = baselines['^NSEBANK']?.latestPrice || 54287.35;
   const us10y = baselines['^TNX']?.latestPrice || 4.99;
   const gold = baselines['GC=F']?.latestPrice || 4007.9;
@@ -267,9 +293,22 @@ export async function runRealtimeButterflyEngine(
       confidence: 72,
     };
 
-    // Net impact based on live crude movement and macro stress
-    const baseMacroShock = Math.min(Math.max(crudeChange * 0.4, -12), 15);
-    const estimatedReturnPct = Number((baseMacroShock * sens.beta).toFixed(2));
+    // Comprehensive macro shock transmission across Crude, USD/INR, Yields, and NIFTY
+    // 1. Crude oil stress deviation from historical neutral baseline ($75/bbl)
+    const crudeStressMagnitude = ((crude - 75) / 75) * 18; // e.g. at $103, ~6.8% macro shock
+    // 2. Rupee depreciation stress deviation from baseline (₹83.5/$)
+    const fxStressMagnitude = ((usdinr - 83.5) / 83.5) * 22; // e.g. at ₹94.9, ~3.0% shock
+    // 3. Immediate intraday tape movement
+    const tapeShock = Math.min(Math.max((crudeChange * 0.8) + (niftyChange * 1.5), -10), 10);
+
+    // Combined multi-stage macroeconomic transmission pressure (typically 4% to 14% medium-term shock)
+    const combinedMacroTransmission = Math.min(
+      Math.max(crudeStressMagnitude * 0.6 + fxStressMagnitude * 0.4 + tapeShock * 0.3, 3.5),
+      22.0
+    );
+
+    // Holding return is calculated from the full macro shock multiplied by the sector elasticity
+    const estimatedReturnPct = Number((combinedMacroTransmission * sens.beta).toFixed(2));
     const monetaryImpact = Number((val * (estimatedReturnPct / 100)).toFixed(2));
     const bestCase = Number((val * ((estimatedReturnPct * 1.35) / 100)).toFixed(2));
     const adverseCase = Number((val * ((estimatedReturnPct * 0.65) / 100)).toFixed(2));
@@ -363,6 +402,225 @@ export async function runRealtimeButterflyEngine(
   const worstHolding = [...holdingImpacts].sort((a, b) => a.estimatedMonetaryImpact - b.estimatedMonetaryImpact)[0];
   const bestHolding = [...holdingImpacts].sort((a, b) => b.estimatedMonetaryImpact - a.estimatedMonetaryImpact)[0];
 
+  // ---- Non-Obvious Contagion Path Computation ----
+  const contagionPaths: ContagionPath[] = holdingImpacts.map((holding) => {
+    const sectorKey = holding.sector.toLowerCase();
+    const hops: ContagionHop[] = [];
+
+    if (sectorKey === 'aviation') {
+      hops.push({
+        hopNumber: 1,
+        trigger: 'Crude Oil Spike',
+        transmission: 'Jet Fuel Cost Surge (+40% of COGS)',
+        estimatedImpactPct: Number((-(crude - 75) / 75 * 12).toFixed(2)),
+        lagDays: 3,
+        hopType: 'direct',
+      });
+      hops.push({
+        hopNumber: 2,
+        trigger: 'Fuel Cost Surge',
+        transmission: 'Ticket Price Increase → Demand Elasticity Drop',
+        estimatedImpactPct: Number((-(crude - 75) / 75 * 6).toFixed(2)),
+        lagDays: 20,
+        hopType: 'indirect',
+      });
+      hops.push({
+        hopNumber: 3,
+        trigger: 'Travel Demand Fall',
+        transmission: 'Load Factor Compression → Revenue Per ASK Drop',
+        estimatedImpactPct: Number((-(crude - 75) / 75 * 4).toFixed(2)),
+        lagDays: 45,
+        hopType: 'demand_side',
+      });
+    } else if (sectorKey === 'consumer' || sectorKey === 'fmcg') {
+      hops.push({
+        hopNumber: 1,
+        trigger: 'Crude/Freight Cost Rise',
+        transmission: 'Packaging & Distribution Cost Inflation',
+        estimatedImpactPct: Number((-(crude - 75) / 75 * 5).toFixed(2)),
+        lagDays: 7,
+        hopType: 'direct',
+      });
+      hops.push({
+        hopNumber: 2,
+        trigger: 'CPI Inflation Rise',
+        transmission: 'Consumer Disposable Income Compression',
+        estimatedImpactPct: Number((-(usdinr - 83.5) / 83.5 * 8).toFixed(2)),
+        lagDays: 25,
+        hopType: 'demand_side',
+      });
+      hops.push({
+        hopNumber: 3,
+        trigger: 'Volume Decline',
+        transmission: 'Operating Leverage Reversal → EBITDA Margin Squeeze',
+        estimatedImpactPct: Number((-(crude - 75) / 75 * 4).toFixed(2)),
+        lagDays: 60,
+        hopType: 'demand_side',
+      });
+    } else if (sectorKey === 'automobile') {
+      hops.push({
+        hopNumber: 1,
+        trigger: 'Raw Material Cost (Steel/Aluminium) inflation via FX',
+        transmission: 'Input Cost Rise',
+        estimatedImpactPct: Number((-(crude - 75) / 75 * 6).toFixed(2)),
+        lagDays: 5,
+        hopType: 'direct',
+      });
+      hops.push({
+        hopNumber: 2,
+        trigger: 'Fuel Price Sentiment',
+        transmission: 'Buyer Postponement of Purchase Decision',
+        estimatedImpactPct: Number((-(crude - 75) / 75 * 5).toFixed(2)),
+        lagDays: 30,
+        hopType: 'sentiment',
+      });
+      hops.push({
+        hopNumber: 3,
+        trigger: 'Credit Channel: RBI Rate Pressure',
+        transmission: 'Auto Loan EMI Rises → Volume Decline',
+        estimatedImpactPct: Number((-(us10y - 4.0) * 3).toFixed(2)),
+        lagDays: 50,
+        hopType: 'credit_channel',
+      });
+    } else if (sectorKey === 'it' || sectorKey === 'technology') {
+      hops.push({
+        hopNumber: 1,
+        trigger: 'USD/INR Depreciation',
+        transmission: 'Revenue Translation Gain (USD billings worth more INR)',
+        estimatedImpactPct: Number(((usdinr - 83.5) / 83.5 * 10).toFixed(2)),
+        lagDays: 7,
+        hopType: 'direct',
+      });
+      hops.push({
+        hopNumber: 2,
+        trigger: 'US Rate Rise',
+        transmission: 'US Client Budget Cuts on IT Outsourcing → Deal Slowdown',
+        estimatedImpactPct: Number((-(us10y - 4.0) * 4).toFixed(2)),
+        lagDays: 45,
+        hopType: 'demand_side',
+      });
+      hops.push({
+        hopNumber: 3,
+        trigger: 'Indian Wage Inflation (from CPI)',
+        transmission: 'Bench Cost Rise → Margin Compression',
+        estimatedImpactPct: Number((-(crude - 75) / 75 * 2).toFixed(2)),
+        lagDays: 60,
+        hopType: 'indirect',
+      });
+    } else if (sectorKey === 'energy') {
+      hops.push({
+        hopNumber: 1,
+        trigger: 'Crude Price Rise',
+        transmission: 'Upstream Realization Expansion per Barrel',
+        estimatedImpactPct: Number(((crude - 75) / 75 * 12).toFixed(2)),
+        lagDays: 3,
+        hopType: 'direct',
+      });
+      hops.push({
+        hopNumber: 2,
+        trigger: 'Windfall Tax Risk',
+        transmission: 'Government Levy Probability Rises → EPS discount',
+        estimatedImpactPct: Number((-(crude > 100 ? 3.5 : 1.0)).toFixed(2)),
+        lagDays: 15,
+        hopType: 'indirect',
+      });
+      hops.push({
+        hopNumber: 3,
+        trigger: 'Shipping Disruption',
+        transmission: 'Export Logistics Cost → Net Realization Compression',
+        estimatedImpactPct: Number((-(crude - 75) / 75 * 2).toFixed(2)),
+        lagDays: 30,
+        hopType: 'indirect',
+      });
+    } else if (sectorKey === 'banking' || sectorKey === 'financial_services') {
+      hops.push({
+        hopNumber: 1,
+        trigger: 'Crude/FX Inflation',
+        transmission: 'RBI Hawkish Signalling → Rate Hike Probability Rises',
+        estimatedImpactPct: Number((-(us10y - 4.0) * 3).toFixed(2)),
+        lagDays: 10,
+        hopType: 'direct',
+      });
+      hops.push({
+        hopNumber: 2,
+        trigger: 'Bond Yield Rise',
+        transmission: 'HTM/AFS Treasury Portfolio MTM Loss',
+        estimatedImpactPct: Number((-(us10y - 4.0) * 4).toFixed(2)),
+        lagDays: 20,
+        hopType: 'credit_channel',
+      });
+      hops.push({
+        hopNumber: 3,
+        trigger: 'Credit Tightening',
+        transmission: 'Retail Loan Demand Slowdown → NII Growth Miss',
+        estimatedImpactPct: Number((-(crude - 75) / 75 * 2).toFixed(2)),
+        lagDays: 60,
+        hopType: 'credit_channel',
+      });
+    } else {
+      // Default: pharma, others
+      hops.push({
+        hopNumber: 1,
+        trigger: 'USD/INR FX',
+        transmission: 'API Import Cost Rise for Formulations',
+        estimatedImpactPct: Number((-(usdinr - 83.5) / 83.5 * 4).toFixed(2)),
+        lagDays: 10,
+        hopType: 'direct',
+      });
+      hops.push({
+        hopNumber: 2,
+        trigger: 'Export Revenue FX Gain',
+        transmission: 'Formulation Revenue Translation Benefit',
+        estimatedImpactPct: Number(((usdinr - 83.5) / 83.5 * 5).toFixed(2)),
+        lagDays: 20,
+        hopType: 'direct',
+      });
+      hops.push({
+        hopNumber: 3,
+        trigger: 'US Market Regulatory / Pricing Pressure',
+        transmission: 'Price Erosion Headwind',
+        estimatedImpactPct: Number((-(us10y - 4.0) * 1.5).toFixed(2)),
+        lagDays: 60,
+        hopType: 'indirect',
+      });
+    }
+
+    const contagionAmplifiedImpactPct = Number(
+      hops.reduce((s, h) => s + h.estimatedImpactPct, 0).toFixed(2),
+    );
+    const standardBetaImpactPct = holding.estimatedReturnPct;
+    const hiddenRiskDelta = Number((contagionAmplifiedImpactPct - standardBetaImpactPct).toFixed(2));
+    const isNonObviousVictim = Math.abs(hiddenRiskDelta) > 2.0;
+    const worstCaseContagionPct = Number((contagionAmplifiedImpactPct * 1.35).toFixed(2));
+    const bestCaseContagionPct = Number((contagionAmplifiedImpactPct * 0.65).toFixed(2));
+
+    let hedgeRecommendation: string | undefined;
+    if (contagionAmplifiedImpactPct < -3) {
+      if (sectorKey === 'aviation' || sectorKey === 'consumer' || sectorKey === 'fmcg' || sectorKey === 'automobile') {
+        hedgeRecommendation =
+          'Consider trimming and adding upstream energy (ONGC/Reliance) or IT exporter (TCS/Infosys) as counter-cyclical offsets.';
+      } else if (sectorKey === 'banking' || sectorKey === 'financial_services') {
+        hedgeRecommendation =
+          'Short-duration bond funds or gold allocation reduces yield-compression risk.';
+      }
+    }
+
+    return {
+      holdingId: holding.holdingId,
+      holdingName: holding.holdingName,
+      ticker: holding.ticker,
+      sector: holding.sector,
+      standardBetaImpactPct,
+      contagionAmplifiedImpactPct,
+      hiddenRiskDelta,
+      isNonObviousVictim,
+      hops,
+      worstCaseContagionPct,
+      bestCaseContagionPct,
+      hedgeRecommendation,
+    };
+  });
+
   return {
     scenarioId: `realtime_bf_${Date.now()}`,
     scenarioName: 'Real-Time Global Geopolitical & Sector Butterfly Effect',
@@ -398,8 +656,9 @@ export async function runRealtimeButterflyEngine(
     },
     holdingImpacts,
     sectorBreakdown,
+    contagionPaths,
     explainability: {
-      conclusion: `Based on current live market signals (Crude: $${crude}, USD/INR: ₹${usdinr}, US 10Y: ${us10y}%), your portfolio faces an estimated net butterfly impact of ${netPercentageImpact >= 0 ? '+' : ''}${netPercentageImpact}% (${netMonetaryImpact >= 0 ? '+₹' : '-₹'}${Math.abs(netMonetaryImpact).toLocaleString('en-IN')}).`,
+      conclusion: `Market Signals (Crude $${crude} · USD/INR ₹${usdinr} · US 10Y ${us10y}%): Estimated net impact is ${netPercentageImpact >= 0 ? '+' : ''}${netPercentageImpact}% (${netMonetaryImpact >= 0 ? '+₹' : '-₹'}${Math.abs(netMonetaryImpact).toLocaleString('en-IN')}).`,
       causalNarrative: `The engine detected elevated commodity and currency stress in real-time. High crude prices expand India's current account deficit and elevate logistics and raw material expenses for manufacturing and auto holdings, while currency translation cushions export-driven IT and upstream exploration assets.`,
       methodology: 'Autonomous multi-stage factor attribution model correlating live market exchange rates, commodity futures, and historical sector beta elasticities with your specific portfolio weights.',
       coreAssumptions: [

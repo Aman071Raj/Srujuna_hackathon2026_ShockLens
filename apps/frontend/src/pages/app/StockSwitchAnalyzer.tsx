@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import StockLogo from '../../components/StockLogo';
 import { useMutation } from '@tanstack/react-query';
 import { stocks, type StockSwitchAnalysis, type StockQuote } from '../../lib/api';
 import { formatCurrency, formatPercent } from '../../lib/utils';
@@ -259,12 +260,15 @@ export default function StockSwitchAnalyzer() {
             {/* Current Stock */}
             <div className="neo-card p-6 bg-white border-2 border-black">
               <div className="flex items-start justify-between pb-3 border-b border-black/10">
-                <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block">
-                    Current Position ({currentStock.exchange})
-                  </span>
-                  <h3 className="font-heading font-extrabold text-xl">{currentStock.name}</h3>
-                  <p className="font-mono text-xs font-bold text-black">{currentStock.symbol}</p>
+                <div className="flex items-start gap-3">
+                  <StockLogo ticker={currentStock.symbol} name={currentStock.name} size="md" className="mt-1 shrink-0" />
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block">
+                      Current Position ({currentStock.exchange})
+                    </span>
+                    <h3 className="font-heading font-extrabold text-xl">{currentStock.name}</h3>
+                    <p className="font-mono text-xs font-bold text-black">{currentStock.symbol}</p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="font-heading font-extrabold text-2xl">
@@ -327,12 +331,15 @@ export default function StockSwitchAnalyzer() {
             {/* Target Stock */}
             <div className="neo-card p-6 bg-yellow/10 border-2 border-black">
               <div className="flex items-start justify-between pb-3 border-b border-black/10">
-                <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block">
-                    Target Position ({targetStock.exchange})
-                  </span>
-                  <h3 className="font-heading font-extrabold text-xl">{targetStock.name}</h3>
-                  <p className="font-mono text-xs font-bold text-black">{targetStock.symbol}</p>
+                <div className="flex items-start gap-3">
+                  <StockLogo ticker={targetStock.symbol} name={targetStock.name} size="md" className="mt-1 shrink-0" />
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block">
+                      Target Position ({targetStock.exchange})
+                    </span>
+                    <h3 className="font-heading font-extrabold text-xl">{targetStock.name}</h3>
+                    <p className="font-mono text-xs font-bold text-black">{targetStock.symbol}</p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="font-heading font-extrabold text-2xl">

@@ -4,6 +4,7 @@ import cors from 'cors';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import session from 'express-session';
+import connectPgSimple from 'connect-pg-simple';
 import pinoHttp from 'pino-http';
 import { logger } from './logger';
 import { supabaseAuthBridge } from './middleware/supabaseAuth';
@@ -17,6 +18,7 @@ import analysisRouter from './routes/analysis';
 import reportsRouter from './routes/reports';
 import stocksRouter from './routes/stocks';
 import butterflyRouter from './routes/butterfly';
+import copilotRouter from './routes/copilot';
 
 const app = express();
 
@@ -81,22 +83,32 @@ const authLimiter = rateLimit({
 app.use('/api', globalLimiter);
 
 // ============================================================
-// Session (HttpOnly cookie)
+// Session (Persistent PostgreSQL Store)
 // ============================================================
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret && process.env.NODE_ENV === 'production') {
   throw new Error('SESSION_SECRET environment variable must be set in production');
 }
 
+const PgSession = connectPgSimple(session);
+const sessionStore = process.env.DATABASE_URL
+  ? new PgSession({
+      conString: process.env.DATABASE_URL,
+      tableName: 'session',
+      createTableIfMissing: true,
+    })
+  : undefined;
+
 app.use(session({
+  store: sessionStore,
   secret: sessionSecret ?? 'dev-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    sameSite: 'lax',
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days persistent login
   },
   name: 'shocklens.sid',
 }));
@@ -119,6 +131,7 @@ app.use('/api/analysis', analysisRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/stocks', stocksRouter);
 app.use('/api/butterfly', butterflyRouter);
+app.use('/api/copilot', copilotRouter);
 
 // ============================================================
 // Error handling

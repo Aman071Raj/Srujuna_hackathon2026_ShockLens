@@ -4,17 +4,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { auth } from '../../lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
+import PortfolioIQCopilotModal from '../../components/PortfolioIQCopilotModal';
 
 const NAV_ITEMS = [
   { path: 'overview', label: 'Overview', index: '01' },
   { path: 'portfolio', label: 'My Portfolio', index: '02' },
-  { path: 'butterfly', label: 'Butterfly Effect Engine', index: '03' },
-  { path: 'immunity', label: 'Shock Immunity', index: '04' },
-  { path: 'switch-analyzer', label: 'Stock Switch & Compare', index: '05' },
-  { path: 'goals', label: 'Financial Goals', index: '06' },
-  { path: 'scenarios', label: 'Scenario Lab', index: '07' },
-  { path: 'reports', label: 'Reports', index: '08' },
-  { path: 'settings', label: 'Settings', index: '09' },
+  { path: 'butterfly', label: 'Market Nexus', index: '03' },
+  { path: 'switch-analyzer', label: 'Stock Switch & Compare', index: '04' },
+  { path: 'goals', label: 'Financial Goals', index: '05' },
+  { path: 'scenarios', label: 'Scenario Lab', index: '06' },
+  { path: 'reports', label: 'Reports', index: '07' },
+  { path: 'settings', label: 'Settings', index: '08' },
 ];
 
 export default function DashboardLayout() {
@@ -24,6 +24,7 @@ export default function DashboardLayout() {
     typeof window === 'undefined' || window.innerWidth >= 768,
   );
   const [darkMode, setDarkMode] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
 
   const { data } = useQuery({
     queryKey: ['auth', 'me'],
@@ -133,20 +134,54 @@ export default function DashboardLayout() {
             </button>
             <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-widest text-muted-foreground">ShockLens / Workspace</span>
           </div>
-          <button
-            type="button"
-            onClick={toggleDark}
-            className="border border-black px-3 py-2 hover:bg-yellow transition-colors font-mono text-[10px] font-bold tracking-widest"
-            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {darkMode ? 'LIGHT' : 'DARK'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCopilotOpen(true)}
+              className="bg-yellow hover:bg-black hover:text-white border-2 border-black px-3 py-1.5 font-mono text-xs font-black tracking-wider shadow-neo-xs flex items-center gap-1.5 transition-colors"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+              PORTFOLIOIQ COPILOT
+            </button>
+            <button
+              type="button"
+              onClick={toggleDark}
+              className="border border-black px-3 py-2 hover:bg-yellow transition-colors font-mono text-[10px] font-bold tracking-widest"
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {darkMode ? 'LIGHT' : 'DARK'}
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 overflow-auto bg-background p-4 md:p-8">
           <Outlet />
         </main>
       </div>
+
+      {/* Floating Action Button for Copilot */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          type="button"
+          onClick={() => setCopilotOpen(true)}
+          className="bg-yellow hover:bg-black hover:text-white text-black border-3 border-black p-3.5 shadow-neo-lg flex items-center gap-2.5 transition-all group"
+          aria-label="Open PortfolioIQ Copilot"
+        >
+          <div className="w-6 h-6 bg-black text-yellow group-hover:bg-yellow group-hover:text-black flex items-center justify-center font-mono font-black text-xs border border-black">
+            IQ
+          </div>
+          <span className="font-heading font-black text-xs uppercase tracking-tight hidden sm:inline">
+            PortfolioIQ Copilot
+          </span>
+          <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+        </button>
+      </div>
+
+      {/* PortfolioIQ Copilot Modal */}
+      <PortfolioIQCopilotModal
+        isOpen={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+      />
     </div>
   );
 }

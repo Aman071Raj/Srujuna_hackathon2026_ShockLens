@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import StockLogo from '../../components/StockLogo';
 import { useQuery } from '@tanstack/react-query';
 import { butterfly, portfolios, type ButterflyAnalysisResult, type CausalNode } from '../../lib/api';
 import { formatCurrency, formatPercent } from '../../lib/utils';
@@ -15,14 +16,14 @@ import {
 } from 'recharts';
 import { cn } from '../../lib/utils';
 
-type Tab = 'overview' | 'dependency' | 'holdings' | 'sectors' | 'explainability';
+type Tab = 'overview' | 'holdings' | 'dependency' | 'sectors' | 'explainability';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'overview',       label: 'Impact Summary',      icon: '⚡' },
+  { id: 'holdings',       label: 'Holdings Impact',     icon: '📊' },
   { id: 'dependency',     label: 'Causal Chain',         icon: '🔗' },
-  { id: 'holdings',       label: 'Your Holdings',        icon: '📊' },
-  { id: 'sectors',        label: 'Sector Breakdown',     icon: '🏭' },
-  { id: 'explainability', label: 'Why This Result?',     icon: '🧠' },
+  { id: 'sectors',        label: 'Sector Exposure',     icon: '🏭' },
+  { id: 'explainability', label: 'Analysis Logic',       icon: '🧠' },
 ];
 
 export default function ButterflyEffectEngine() {
@@ -69,11 +70,32 @@ export default function ButterflyEffectEngine() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-heading font-black text-3xl uppercase tracking-tight">
-            Butterfly Effect Engine
+            Market Nexus
           </h1>
+          <p className="font-body text-xs text-muted-foreground mt-0.5">
+            Portfolio Evaluated: <span className="font-bold text-black uppercase">{activePortfolio?.name ?? 'Your Portfolio'}</span>
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
+          {portfolioList.length > 1 && (
+            <div className="flex gap-1.5 p-1 bg-muted/40 border-2 border-black">
+              {portfolioList.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setSelectedPortfolioId(p.id);
+                    setStoredPortfolioId(p.id);
+                  }}
+                  className={`px-3 py-1 border border-black font-heading font-bold text-xs uppercase tracking-wider whitespace-nowrap transition-all shadow-neo-xs ${
+                    activePortfolio?.id === p.id ? 'bg-yellow text-black font-extrabold' : 'bg-white hover:bg-yellow/30 text-black/70'
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             type="button"
             onClick={() => refetch()}
@@ -195,15 +217,15 @@ export default function ButterflyEffectEngine() {
             <div className="neo-card p-6 bg-white border-t-0 border-4 border-black">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b-2 border-black">
                 <div>
-                  <div className="inline-block px-3 py-1 bg-black text-white text-xs font-mono font-bold uppercase mb-2">
-                    Portfolio Butterfly Analysis
+                  <div className="inline-block px-2.5 py-0.5 bg-black text-white text-[10px] font-mono font-bold uppercase mb-1.5 tracking-wider">
+                    Macro Shock Sensitivity Analysis
                   </div>
-                  <h2 className="font-heading font-extrabold text-2xl uppercase">
+                  <p className="font-mono text-xs font-semibold text-black/85 max-w-2xl leading-relaxed">
                     {result.explainability.conclusion}
-                  </h2>
-                  <p className="font-body text-xs text-muted-foreground mt-1">
+                  </p>
+                  <p className="font-body text-[11px] text-muted-foreground mt-1">
                     Time Horizon: <span className="font-bold text-black">{result.timeHorizon}</span>{' '}
-                    • Model Calibration: <span className="font-bold text-black">{result.explainability.statisticalConfidenceScore}% Confidence</span>
+                    • Model Confidence: <span className="font-bold text-black">{result.explainability.statisticalConfidenceScore}%</span>
                   </p>
                 </div>
 
@@ -261,10 +283,10 @@ export default function ButterflyEffectEngine() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-2 border-b border-black/10">
                 <div>
                   <h3 className="font-heading font-extrabold text-lg uppercase tracking-tight">
-                    Visual Butterfly Effect Dependency Graph
+                    Causal Transmission &amp; Dependency Chain
                   </h3>
                   <p className="font-body text-xs text-muted-foreground">
-                    How real-time geopolitical and macro variables ripple through to your portfolio. Click any node to inspect evidence.
+                    How real-time geopolitical and macroeconomic variables ripple through to your holdings. Click any node to inspect evidence.
                   </p>
                 </div>
                 <span className="text-[11px] font-mono bg-yellow/40 px-2.5 py-1 border border-black">
@@ -414,8 +436,13 @@ export default function ButterflyEffectEngine() {
                     {result.holdingImpacts.map((holding) => (
                       <tr key={holding.holdingId} className="hover:bg-yellow/10">
                         <td className="p-3 font-heading font-bold text-sm">
-                          {holding.holdingName}
-                          <span className="block font-mono text-[10px] font-normal text-muted-foreground">{holding.ticker}</span>
+                          <div className="flex items-center gap-2">
+                            <StockLogo ticker={holding.ticker} name={holding.holdingName} size="xs" className="shrink-0" />
+                            <div>
+                              <span>{holding.holdingName}</span>
+                              <span className="block font-mono text-[10px] font-normal text-muted-foreground">{holding.ticker}</span>
+                            </div>
+                          </div>
                         </td>
                         <td className="p-3 uppercase font-mono text-[10px]">{holding.sector}</td>
                         <td className="p-3 text-right font-mono font-bold">₹{holding.currentValue.toLocaleString('en-IN')}</td>
@@ -498,32 +525,23 @@ export default function ButterflyEffectEngine() {
 
           {/* ── Tab: Why This Result? ── */}
           {activeTab === 'explainability' && (
-            <div className="neo-card p-6 bg-muted/20 border-t-0 border-4 border-black">
-              <h3 className="font-heading font-extrabold text-xl uppercase tracking-tight mb-4 flex items-center gap-2">
-                🧠 Why did the Engine reach this conclusion?
+            <div className="neo-card p-6 bg-white border-t-0 border-4 border-black">
+              <h3 className="font-heading font-extrabold text-lg uppercase tracking-tight mb-4 flex items-center gap-2">
+                🧠 Transmission Narrative &amp; Assumptions
               </h3>
 
-              <div className="space-y-5 text-xs font-body leading-relaxed">
+              <div className="space-y-4 text-xs font-body leading-relaxed">
                 <div>
                   <h4 className="font-heading font-bold uppercase text-[11px] text-muted-foreground mb-1">
-                    1. Live Causal Transmission Path
+                    Causal Transmission Narrative
                   </h4>
-                  <p className="p-3 bg-white border border-black/20 rounded-sm font-medium">
+                  <p className="p-3 bg-muted/20 border border-black/20 rounded-sm font-medium">
                     {result.explainability.causalNarrative}
                   </p>
                 </div>
 
-                <div>
-                  <h4 className="font-heading font-bold uppercase text-[11px] text-muted-foreground mb-1">
-                    2. Quantitative Methodology
-                  </h4>
-                  <p className="p-3 bg-white border border-black/20 rounded-sm font-medium">
-                    {result.explainability.methodology}
-                  </p>
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-3 bg-white border border-black/20 rounded-sm">
+                  <div className="p-3 bg-muted/20 border border-black/20 rounded-sm">
                     <h4 className="font-heading font-bold uppercase text-[11px] text-muted-foreground mb-2">Core Assumptions:</h4>
                     <ul className="list-disc pl-4 space-y-1 font-medium text-black">
                       {result.explainability.coreAssumptions.map((a, i) => (
@@ -532,8 +550,8 @@ export default function ButterflyEffectEngine() {
                     </ul>
                   </div>
 
-                  <div className="p-3 bg-white border border-black/20 rounded-sm">
-                    <h4 className="font-heading font-bold uppercase text-[11px] text-coral mb-2">Key Invalidation Risks:</h4>
+                  <div className="p-3 bg-coral/5 border border-coral/30 rounded-sm">
+                    <h4 className="font-heading font-bold uppercase text-[11px] text-coral mb-2">Invalidation Triggers:</h4>
                     <ul className="list-disc pl-4 space-y-1 font-medium text-coral">
                       {result.explainability.invalidationRisks.map((r, i) => (
                         <li key={i}>{r}</li>
@@ -543,8 +561,8 @@ export default function ButterflyEffectEngine() {
                 </div>
 
                 <div className="pt-2 text-[11px] font-mono text-muted-foreground flex items-center justify-between">
-                  <span>{result.explainability.dataFreshnessNotice}</span>
-                  <span className="font-bold text-black">Real-time analytical support only. Not investment advice.</span>
+                  <span>Confidence: <strong>{result.explainability.statisticalConfidenceScore}%</strong></span>
+                  <span className="font-medium text-black/70">Real-time analytical scenario model.</span>
                 </div>
               </div>
             </div>

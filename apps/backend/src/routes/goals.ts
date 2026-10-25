@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { CreateGoalSchema, UpdateGoalSchema } from '@shocklens/shared';
 import * as goalService from '../services/goal.service';
+import { goalRecommendationService } from '../services/goalRecommendationService';
 
 const router = Router();
 
@@ -20,6 +21,32 @@ router.post('/', requireAuth, validate(CreateGoalSchema), async (req, res, next)
     const goal = await goalService.createGoal(req.session.userId!, req.body);
     res.status(201).json({ goal });
   } catch (err) { next(err); }
+});
+
+// POST /api/goals/recommend-investments
+router.post('/recommend-investments', requireAuth, async (req, res, next) => {
+  try {
+    const { targetAmount, targetDate, monthlyContribution, reservedCash, currentSavings, portfolioId } = req.body;
+    
+    if (!targetAmount || !targetDate) {
+      res.status(400).json({ error: 'targetAmount and targetDate are required.' });
+      return;
+    }
+
+    const recommendation = await goalRecommendationService.analyzeAndRecommend({
+      targetAmount: Number(targetAmount),
+      targetDate: String(targetDate),
+      monthlyContribution: Number(monthlyContribution) || 0,
+      reservedCash: Number(reservedCash) || 0,
+      currentSavings: Number(currentSavings) || 0,
+      userId: req.session.userId,
+      portfolioId: portfolioId ? String(portfolioId) : undefined,
+    });
+
+    res.json({ recommendation });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // PATCH /api/goals/:id
