@@ -1,0 +1,358 @@
+/**
+ * API client for ShockLens backend.
+ * All requests go through /api (proxied by Vite to localhost:4000).
+ */
+
+import { supabase, usesSupabaseAuth } from './supabase';
+
+const BASE = '/api';
+
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const headers = new Headers();
+  if (body) headers.set('Content-Type', 'application/json');
+  if (supabase) {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw new Error(`Could not read your Supabase session: ${error.message}`);
+    if (data.session?.access_token) headers.set('Authorization', `Bearer ${data.session.access_token}`);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      credentials: 'include',
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error('Could not reach the ShockLens API. Start the backend and check its database connection.');
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const message = (data as { error?: string }).error ?? `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+  return res.json() as Promise<T>;
+}
+
+const get = <T>(path: string) => request<T>('GET', path);
+const post = <T>(path: string, body?: unknown) => request<T>('POST', path, body);
+const patch = <T>(path: string, body?: unknown) => request<T>('PATCH', path, body);
+const del = <T>(path: string) => request<T>('DELETE', path);
+
+// ---- Auth ----
+export const auth = {
+  register: async (input: { email: string; password: string; name: string }) => {
+    if (!supabase) return post<{ user: { id: string; email: string; name: string }; confirmationRequired?: false }>('/auth/register', input);
+    const { data, error } = await supabase.auth.signUp({
+      email: input.email.trim().toLowerCase(),
+      password: input.password,
+      options: {
+        data: { name: input.name.trim() },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) throw new Error(error.message);
+    if (!data.user) throw new Error('Supabase created no user. Check the project Auth settings and try again.');
+    if (!data.session) {
+      return {
+        user: { id: data.user.id, email: data.user.email ?? input.email, name: input.name },
+        confirmationRequired: true as const,
+      };
+    }
+    const profile = await get<{ user: { id: string; email: string; name: string; createdAt: string } }>('/auth/me');
+    return { user: profile.user, confirmationRequired: false as const };
+  },
+  login: async (input: { email: string; password: string }) => {
+    if (!supabase) return post<{ user: { id: string; email: string; name: string } }>('/auth/login', input);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: input.email.trim().toLowerCase(),
+      password: input.password,
+    });
+    if (error) throw new Error(error.message);
+    if (!data.session) throw new Error('Sign-in completed without a session. Check your email confirmation settings.');
+    const profile = await get<{ user: { id: string; email: string; name: string; createdAt: string } }>('/auth/me');
+    return { user: profile.user };
+  },
+  logout: async () => {
+    if (supabase) {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw new Error(error.message);
+      try { await post<{ message: string }>('/auth/logout'); } catch { /* Supabase sign-out is authoritative. */ }
+      return { message: 'Logged out successfully' };
+    }
+    return post<{ message: string }>('/auth/logout');
+  },
+  me: () => get<{ user: { id: string; email: string; name: string; createdAt: string } }>('/auth/me'),
+  updateProfile: async (input: Record<string, string>) => {
+    if (!supabase) return patch<{ user: { id: string; email: string; name: string } }>('/auth/profile', input);
+    const attributes: { password?: string; data?: Record<string, string> } = {};
+    if (input.newPassword) attributes.password = input.newPassword;
+    if (input.name) attributes.data = { name: input.name };
+    if (Object.keys(attributes).length > 0) {
+      const { error } = await supabase.auth.updateUser(attributes);
+      if (error) throw new Error(error.message);
+    }
+    if (input.name) return patch<{ user: { id: string; email: string; name: string } }>('/auth/profile', { name: input.name });
+    return get<{ user: { id: string; email: string; name: string } }>('/auth/me');
+  },
+};
+
+export { usesSupabaseAuth };
+
+// ---- Portfolios ----
+export const portfolios = {
+  list: () => get<{ portfolios: unknown[] }>('/portfolios'),
+  get: (id: string) => get<{ portfolio: unknown }>(`/portfolios/${id}`),
+  create: (data: { name: string; description?: string; currency: string }) =>
+    post<{ portfolio: unknown }>('/portfolios', data),
+  update: (id: string, data: Record<string, unknown>) =>
+    patch<{ portfolio: unknown }>(`/portfolios/${id}`, data),
+  delete: (id: string) => del<{ message: string }>(`/portfolios/${id}`),
+  addHolding: (portfolioId: string, data: Record<string, unknown>) =>
+    post<{ holding: unknown }>(`/portfolios/${portfolioId}/holdings`, data),
+  csvTemplate: () => fetch(`${BASE}/portfolios/csv-template/download`, { credentials: 'include' }),
+  importCsv: async (portfolioId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE}/portfolios/${portfolioId}/import`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+    }
+    return res.json();
+  },
+};
+
+// ---- Holdings ----
+export const holdings = {
+  update: (id: string, data: Record<string, unknown>) =>
+    patch<{ holding: unknown }>(`/holdings/${id}`, data),
+  delete: (id: string) => del<{ message: string }>(`/holdings/${id}`),
+};
+
+// ---- Goals ----
+export const goals = {
+  list: () => get<{ goals: unknown[] }>('/goals'),
+  create: (data: Record<string, unknown>) => post<{ goal: unknown }>('/goals', data),
+  update: (id: string, data: Record<string, unknown>) => patch<{ goal: unknown }>(`/goals/${id}`, data),
+  delete: (id: string) => del<{ message: string }>(`/goals/${id}`),
+};
+
+// ---- Analysis ----
+export const analysis = {
+  exposure: (portfolioId: string) =>
+    post<{ result: unknown }>('/analysis/exposure', { portfolioId }),
+  scenario: (data: { portfolioId: string; goalId?: string; scenario: unknown }) =>
+    post<{ result: unknown }>('/analysis/scenario', data),
+  compare: (data: Record<string, unknown>) =>
+    post<{ result: unknown }>('/analysis/compare', data),
+};
+
+// ---- Reports ----
+export const reports = {
+  list: () => get<{ reports: unknown[] }>('/reports'),
+  create: (data: Record<string, unknown>) => post<{ report: unknown }>('/reports', data),
+  get: (id: string) => get<{ report: unknown }>(`/reports/${id}`),
+  download: (id: string) => fetch(`${BASE}/reports/${id}/download`, { credentials: 'include' }),
+};
+
+// ---- Indian Stock Market & Switch Analysis ----
+export interface StockQuote {
+  symbol: string;
+  name: string;
+  currency: string;
+  exchange: string;
+  currentPrice: number;
+  change: number;
+  changePercent: number;
+  dayHigh: number;
+  dayLow: number;
+  fiftyTwoWeekHigh: number;
+  fiftyTwoWeekLow: number;
+  previousClose: number;
+  volume: number;
+  oneMonthReturn: number;
+  sixMonthReturn: number;
+  oneYearReturn: number;
+  volatility: number;
+  history: { date: string; price: number; volume: number }[];
+}
+
+export interface StockSwitchAnalysis {
+  investmentAmount: number;
+  recommendation: 'STRONG_SWITCH' | 'CONSIDER_SWITCH' | 'HOLD_CURRENT' | 'NEUTRAL';
+  verdict: string;
+  strategy: string;
+  reasonings: string[];
+  comparison: {
+    currentStock: StockQuote;
+    targetStock: StockQuote;
+    currentUnits: number;
+    targetUnits: number;
+    timeline: {
+      date: string;
+      currentStockPrice: number;
+      targetStockPrice: number;
+      currentNormalized: number;
+      targetNormalized: number;
+    }[];
+  };
+}
+
+export const stocks = {
+  search: (query: string) =>
+    get<{ results: { symbol: string; name: string; exchange: string }[] }>(`/stocks/search?q=${encodeURIComponent(query)}`),
+  getQuote: (symbol: string) =>
+    get<{ stock: StockQuote }>(`/stocks/quote/${encodeURIComponent(symbol)}`),
+  compareAndSwitch: (data: { currentSymbol: string; targetSymbol: string; investmentAmount: number }) =>
+    post<StockSwitchAnalysis>('/stocks/compare-and-switch', data),
+};
+
+// ---- Financial Butterfly Effect Engine ----
+export interface MacroIndicator {
+  symbol: string;
+  name: string;
+  category: 'commodity' | 'currency' | 'index' | 'rates';
+  latestPrice: number;
+  previousClose: number;
+  change: number;
+  changePercent: number;
+  unit: string;
+  timestamp: string;
+  isRealTime: boolean;
+}
+
+export interface CausalNode {
+  id: string;
+  name: string;
+  stage: 'trigger' | 'macro_factor' | 'transmission' | 'sector' | 'stock' | 'portfolio';
+  category: string;
+  expectedDirection: 'positive' | 'negative' | 'neutral';
+  estimatedImpactPct: number;
+  impactRange: [number, number];
+  confidenceScore: number;
+  evidenceType: string;
+  evidenceSummary: string;
+  dataPointsCount: number;
+  baselineValue?: number;
+  unit?: string;
+}
+
+export interface CausalEdge {
+  fromNodeId: string;
+  toNodeId: string;
+  relationshipName: string;
+  elasticity: number;
+  historicalCorrelation: number;
+  lagDays: number;
+  economicRationale: string;
+  empiricalBasis: string;
+}
+
+export interface HoldingImpact {
+  holdingId: string;
+  holdingName: string;
+  ticker: string;
+  assetClass: string;
+  sector: string;
+  currentValue: number;
+  portfolioWeightPct: number;
+  betaToScenario: number;
+  estimatedReturnPct: number;
+  estimatedMonetaryImpact: number;
+  bestCaseMonetary: number;
+  adverseCaseMonetary: number;
+  transmissionPath: string[];
+  historicalConfidence: number;
+  isStaleOrSimulated: boolean;
+}
+
+export interface ButterflyAnalysisResult {
+  scenarioId: string;
+  scenarioName: string;
+  triggerDescription: string;
+  isHypothetical: boolean;
+  baselineTimestamp: string;
+  macroBaseline: Record<string, MacroIndicator>;
+  timeHorizon: string;
+  nodes: CausalNode[];
+  edges: CausalEdge[];
+  portfolioSummary: {
+    portfolioName: string;
+    totalValueBefore: number;
+    estimatedValueAfter: number;
+    netMonetaryImpact: number;
+    netPercentageImpact: number;
+    adverseCaseLoss: number;
+    bestCaseGain: number;
+    positiveHoldingsCount: number;
+    negativeHoldingsCount: number;
+    topRiskContributor: string;
+    hedgingBenefit: string;
+    concentrationWarning?: string;
+  };
+  holdingImpacts: HoldingImpact[];
+  sectorBreakdown: {
+    sector: string;
+    allocatedValue: number;
+    weightPct: number;
+    estimatedReturnPct: number;
+    netImpact: number;
+    direction: 'positive' | 'negative' | 'neutral';
+  }[];
+  explainability: {
+    conclusion: string;
+    causalNarrative: string;
+    methodology: string;
+    coreAssumptions: string[];
+    invalidationRisks: string[];
+    dataFreshnessNotice: string;
+    statisticalConfidenceScore: number;
+  };
+}
+
+export const butterfly = {
+  getBaselines: () =>
+    get<{ timestamp: string; baselines: Record<string, MacroIndicator> }>('/butterfly/baselines'),
+  getRealtimeAnalysis: (portfolioId?: string) =>
+    get<{ result: ButterflyAnalysisResult & { activeRealtimeRisks: string[] } }>(
+      `/butterfly/realtime-analysis${portfolioId ? `?portfolioId=${encodeURIComponent(portfolioId)}` : ''}`
+    ),
+  simulate: (data: {
+    scenarioType: string;
+    shockMagnitudePct: number;
+    customTriggerName?: string;
+    portfolioId?: string;
+  }) => post<{ result: ButterflyAnalysisResult }>('/butterfly/simulate', data),
+  getShockImmunity: (data: { portfolioId?: string; budgetAmount?: number }) =>
+    post<{
+      result: {
+        currentDownsideAtRisk: number;
+        protectedDownsideValue: number;
+        overallRiskReductionPct: number;
+        primaryVulnerability: string;
+        budgetAllocated: number;
+        recommendedHedges: Array<{
+          id: string;
+          name: string;
+          ticker: string;
+          instrumentType: string;
+          recommendedAllocationPct: number;
+          recommendedAmount: number;
+          hedgeReason: string;
+          expectedProtectionPct: number;
+          riskMitigated: string;
+        }>;
+      };
+    }>('/butterfly/shock-immunity', data),
+};

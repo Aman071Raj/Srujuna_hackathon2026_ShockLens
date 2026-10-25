@@ -1,0 +1,279 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ShockLens — restrained brutalism: paper, ink, rules, one signal color. */
+@layer base {
+  :root {
+    --background: 42 18% 96%;
+    --foreground: 0 0% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
+    --primary: 72 88% 58%;
+    --primary-foreground: 0 0% 8%;
+    --secondary: 42 8% 91%;
+    --secondary-foreground: 0 0% 8%;
+    --muted: 42 8% 92%;
+    --muted-foreground: 0 0% 38%;
+    --accent: 72 88% 58%;
+    --accent-foreground: 0 0% 8%;
+    --destructive: 7 66% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 8%;
+    --input: 0 0% 8%;
+    --ring: 72 88% 48%;
+    --radius: 0rem;
+  }
+
+  .dark {
+    --background: 0 0% 7%;
+    --foreground: 42 18% 94%;
+    --card: 0 0% 10%;
+    --card-foreground: 42 18% 94%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 42 18% 94%;
+    --primary: 72 88% 58%;
+    --primary-foreground: 0 0% 8%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 42 18% 94%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 66%;
+    --accent: 72 88% 58%;
+    --accent-foreground: 0 0% 8%;
+    --destructive: 7 66% 54%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 26%;
+    --input: 0 0% 26%;
+    --ring: 72 88% 58%;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+    min-width: 320px;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+
+  button, a, input, select, textarea {
+    border-radius: 0;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    color: #111111;
+    background: #d9f342;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #eeece5;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #111111;
+    border: 2px solid #eeece5;
+  }
+}
+
+@layer components {
+  /* Neo-Brutalist card: clean paper white, sharp 2px ink borders, solid hard shadow */
+  .neo-card {
+    @apply bg-card text-card-foreground border-2 border-black rounded-none shadow-neo;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+
+  .neo-card:hover {
+    box-shadow: 5px 5px 0px #111111;
+  }
+
+  .neo-card:where(a, button):hover {
+    transform: translate(-1.5px, -1.5px);
+    box-shadow: 5px 5px 0px #111111;
+  }
+
+  .neo-card:focus-visible {
+    outline: 2px solid #111111;
+    outline-offset: 3px;
+  }
+
+  .metric-card {
+    @apply neo-card p-5 relative overflow-hidden;
+  }
+
+  .metric-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 24px;
+    height: 24px;
+    background: repeating-linear-gradient(
+      -45deg,
+      #111111,
+      #111111 2px,
+      transparent 2px,
+      transparent 6px
+    );
+    opacity: 0.25;
+  }
+
+  .btn-neo {
+    @apply inline-flex items-center justify-center gap-2;
+    @apply border-2 border-black rounded-none font-heading font-extrabold uppercase tracking-wide;
+    @apply shadow-neo-sm cursor-pointer select-none;
+    @apply transition-all duration-150;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-neo:not(:disabled):hover {
+    transform: translate(-1.5px, -1.5px);
+    box-shadow: 4px 4px 0px #111111;
+  }
+
+  .btn-neo:not(:disabled):active {
+    transform: translate(2px, 2px);
+    box-shadow: 0px 0px 0px #111111;
+  }
+
+  .btn-yellow   { @apply btn-neo bg-yellow text-black; }
+  .btn-coral    { @apply btn-neo bg-coral text-white; }
+  .btn-mint     { @apply btn-neo bg-mint text-black; }
+  .btn-lavender { @apply btn-neo bg-lavender text-black; }
+  .btn-white    { @apply btn-neo bg-white text-black; }
+  .btn-black    { @apply btn-neo bg-black text-white; }
+
+  .pill {
+    @apply inline-flex items-center px-2 py-1 rounded-none border border-black;
+    @apply text-[10px] font-mono font-bold uppercase tracking-widest;
+  }
+
+  .disclaimer-banner {
+    @apply border border-black bg-muted px-4 py-3 text-sm font-body;
+    border-left: 4px solid #d9f342;
+  }
+
+  [data-radix-slider-thumb] {
+    @apply w-5 h-5 bg-yellow border-2 border-black rounded-none shadow-none cursor-grab;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  [data-radix-slider-thumb]:active {
+    @apply cursor-grabbing;
+  }
+
+  [data-radix-slider-track] {
+    @apply bg-muted border border-black rounded-none;
+  }
+
+  [data-radix-slider-range] {
+    @apply bg-yellow rounded-none;
+  }
+
+  .section-title {
+    @apply text-3xl md:text-4xl font-heading font-bold tracking-tight leading-tight;
+    text-wrap: balance;
+  }
+
+  .section-subtitle {
+    @apply text-base md:text-lg font-body text-muted-foreground leading-relaxed;
+  }
+
+  .site-header {
+    @apply sticky top-0 z-40 flex items-center justify-between gap-6;
+    @apply border-b border-black bg-cream px-3 py-3 md:px-6;
+  }
+
+  .brand-lockup {
+    @apply flex items-center gap-3 font-heading font-extrabold tracking-tight text-sm;
+  }
+
+  .brand-mark {
+    @apply inline-flex h-9 w-9 items-center justify-center border border-black;
+    @apply bg-yellow text-black font-mono text-xs font-black tracking-tighter;
+  }
+
+  .site-nav {
+    @apply hidden md:flex items-center gap-6;
+  }
+
+  .site-nav a {
+    @apply font-mono text-[10px] font-bold tracking-widest hover:underline;
+    text-underline-offset: 4px;
+  }
+
+  .site-actions {
+    @apply flex items-center gap-4;
+  }
+
+  .site-signin {
+    @apply font-mono text-[10px] font-bold tracking-widest underline underline-offset-4;
+  }
+
+  .hero-accent {
+    display: inline-block;
+    padding: 0 0.12em;
+    color: #111111;
+    background: #d9f342;
+  }
+}
+
+@media (max-width: 380px) {
+  .site-header { gap: 0.5rem; }
+  .site-actions { gap: 0.5rem; }
+  .site-actions .btn-yellow { padding-inline: 0.5rem; font-size: 9px; }
+  .site-signin { font-size: 9px; }
+}
+
+@layer utilities {
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Legacy text helpers now use a flat accent instead of gradients. */
+  .text-gradient-yellow {
+    color: #111111;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    text-decoration: underline;
+    text-decoration-color: #d9f342;
+    text-decoration-thickness: 0.16em;
+    text-underline-offset: 0.04em;
+  }
+
+  .text-gradient-lavender {
+    color: #55534d;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}

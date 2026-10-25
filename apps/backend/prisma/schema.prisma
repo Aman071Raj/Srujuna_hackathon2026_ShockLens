@@ -1,0 +1,201 @@
+// ShockLens Prisma Schema
+// PostgreSQL with decimal-safe financial amounts
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Users and Sessions
+// ============================================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String?
+  supabaseId   String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  portfolios PortfolioModel[]
+  goals      GoalModel[]
+  reports    ReportModel[]
+
+  @@index([email])
+}
+
+// express-session with connect-pg-simple uses its own table:
+// CREATE TABLE "session" ("sid" varchar NOT NULL COLLATE "default",
+//   "sess" json NOT NULL, "expire" timestamp(6) NOT NULL)
+// Managed by connect-pg-simple migration; not included here.
+
+// ============================================================
+// Portfolio and Holdings
+// ============================================================
+
+model PortfolioModel {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  holdings HoldingModel[]
+  goals    GoalModel[]
+  analyses AnalysisResultModel[]
+
+  @@index([userId])
+  @@map("Portfolio")
+}
+
+enum AssetClass {
+  equity
+  fixed_income
+  real_estate
+  commodity
+  cash
+  crypto
+  alternative
+  other
+}
+
+enum LiquidityPeriod {
+  immediate
+  short
+  medium
+  long
+  illiquid
+}
+
+model HoldingModel {
+  id                       String          @id @default(uuid())
+  portfolioId              String
+  name                     String
+  ticker                   String?
+  assetClass               AssetClass
+  sector                   String?
+  geography                String?
+  currency                 String          @default("USD")
+  currentValue             Decimal         @db.Decimal(20, 4)
+  valueInPortfolioCurrency Decimal         @db.Decimal(20, 4)
+  exchangeRateUsed         Decimal?        @db.Decimal(20, 8)
+  liquidityPeriod          LiquidityPeriod
+  liquidationHaircut       Decimal?        @db.Decimal(6, 4)
+  durationYears            Decimal?        @db.Decimal(10, 4)
+  rateShockSensitivity     Decimal?        @db.Decimal(20, 8)
+  exposureTags             String[]        @default([])
+  historicalValues         Json?
+  notes                    String?
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+
+  portfolio PortfolioModel @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@index([assetClass])
+  @@index([sector])
+  @@map("Holding")
+}
+
+// ============================================================
+// Financial Goals
+// ============================================================
+
+enum GoalType {
+  home_down_payment
+  higher_education
+  retirement_withdrawal
+  emergency_reserve
+  custom
+}
+
+model GoalModel {
+  id                  String   @id @default(uuid())
+  userId              String
+  portfolioId         String?
+  name                String
+  goalType            GoalType
+  targetAmount        Decimal  @db.Decimal(20, 4)
+  targetDate          DateTime @db.Date
+  reservedCash        Decimal  @db.Decimal(20, 4) @default(0)
+  requiredLiquidAmount Decimal @db.Decimal(20, 4)
+  acceptableShortfall Decimal  @db.Decimal(20, 4) @default(0)
+  monthlyContribution Decimal? @db.Decimal(20, 4)
+  flexibleDate        Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  portfolio PortfolioModel? @relation(fields: [portfolioId], references: [id], onDelete: SetNull)
+  reports   ReportModel[]
+
+  @@index([userId])
+  @@index([portfolioId])
+  @@map("Goal")
+}
+
+// ============================================================
+// Saved Scenarios
+// ============================================================
+
+model SavedScenario {
+  id               String   @id @default(uuid())
+  userId           String
+  name             String
+  description      String?
+  scenarioJson     Json     // stores ScenarioDefinition
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@map("SavedScenario")
+}
+
+// ============================================================
+// Analysis Results (cached)
+// ============================================================
+
+model AnalysisResultModel {
+  id          String   @id @default(uuid())
+  portfolioId String
+  type        String   // 'scenario' | 'breaking_point' | 'exposure' | 'comparison'
+  inputJson   Json
+  resultJson  Json
+  createdAt   DateTime @default(now())
+
+  portfolio PortfolioModel @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@index([type])
+  @@map("AnalysisResult")
+}
+
+// ============================================================
+// Reports
+// ============================================================
+
+model ReportModel {
+  id                      String   @id @default(uuid())
+  userId                  String
+  portfolioId             String?
+  goalId                  String?
+  title                   String
+  analysisJson            Json
+  generatedAt             DateTime @default(now())
+  pdfPath                 String?
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal  GoalModel? @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("Report")
+}
