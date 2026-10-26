@@ -82,6 +82,7 @@ The application combines portfolio management, shared calculation logic, externa
 
 ### 8. 🔐 Accounts and Authentication
 
+- Open Demo Guest Access from the login page to explore a sample portfolio without an account. Guest data includes static fixtures; some analysis actions still require the API.
 - Register and sign in using Express email/password authentication.
 - Store password hashes with bcrypt and sessions in PostgreSQL.
 - Optionally enable Supabase Auth with bearer-token verification and app-profile linking.
