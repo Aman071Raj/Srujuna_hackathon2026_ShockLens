@@ -4,16 +4,73 @@
  */
 
 import { supabase, usesSupabaseAuth } from './supabase';
+import { DEMO_USER, DEMO_PORTFOLIO, DEMO_HOLDINGS, DEMO_GOAL } from '@shocklens/shared';
 
 const BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
   : '/api';
+
+const isGuestSession = () => sessionStorage.getItem('shocklens_guest') === 'true';
+
+export const enableGuestMode = () => {
+  sessionStorage.setItem('shocklens_guest', 'true');
+};
+
+export const disableGuestMode = () => {
+  sessionStorage.removeItem('shocklens_guest');
+};
+
+const GUEST_PORTFOLIO = {
+  ...DEMO_PORTFOLIO,
+  holdings: DEMO_HOLDINGS,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-10-24T00:00:00.000Z',
+};
+
+const GUEST_GOAL = {
+  ...DEMO_GOAL,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-10-24T00:00:00.000Z',
+};
 
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
 ): Promise<T> {
+  if (isGuestSession()) {
+    if (path === '/auth/me') {
+      return { user: { ...DEMO_USER, createdAt: '2026-01-01T00:00:00.000Z' } } as unknown as T;
+    }
+    if (path === '/auth/logout') {
+      disableGuestMode();
+      return { message: 'Logged out successfully' } as unknown as T;
+    }
+    if (path === '/portfolios') {
+      return { portfolios: [GUEST_PORTFOLIO] } as unknown as T;
+    }
+    if (path.startsWith('/portfolios/')) {
+      return { portfolio: GUEST_PORTFOLIO } as unknown as T;
+    }
+    if (path === '/goals') {
+      return { goals: [GUEST_GOAL] } as unknown as T;
+    }
+    if (path.startsWith('/goals/')) {
+      return { goal: GUEST_GOAL } as unknown as T;
+    }
+    if (path === '/butterfly/baselines') {
+      return {
+        timestamp: new Date().toISOString(),
+        baselines: {
+          'CL=F': { symbol: 'CL=F', name: 'Brent Crude Oil', category: 'commodity', latestPrice: 74.2, previousClose: 73.8, change: 0.4, changePercent: 0.54, unit: 'USD/bbl', isLive: true, dataSource: 'Yahoo Finance' },
+          'INR=X': { symbol: 'INR=X', name: 'USD / INR Spot', category: 'currency', latestPrice: 84.1, previousClose: 84.05, change: 0.05, changePercent: 0.06, unit: 'INR', isLive: true, dataSource: 'Yahoo Finance' },
+          '^TNX': { symbol: '^TNX', name: 'US 10-Year Yield', category: 'rates', latestPrice: 4.24, previousClose: 4.21, change: 0.03, changePercent: 0.71, unit: '%', isLive: true, dataSource: 'Yahoo Finance' },
+          '^NSEI': { symbol: '^NSEI', name: 'Nifty 50', category: 'index', latestPrice: 24350, previousClose: 24200, change: 150, changePercent: 0.62, unit: 'pts', isLive: true, dataSource: 'NSE' },
+        },
+      } as unknown as T;
+    }
+  }
+
   const headers = new Headers();
   if (body) headers.set('Content-Type', 'application/json');
   if (supabase) {
@@ -31,7 +88,10 @@ async function request<T>(
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new Error('Could not reach the ShockLens API. Start the backend and check its database connection.');
+    if (path === '/auth/me' && isGuestSession()) {
+      return { user: { ...DEMO_USER, createdAt: '2026-01-01T00:00:00.000Z' } } as unknown as T;
+    }
+    throw new Error('Could not reach the ShockLens API. Please use Demo Guest Access or start the backend.');
   }
 
   if (!res.ok) {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { auth } from '../../lib/api';
+import { auth, enableGuestMode } from '../../lib/api';
 import { supabase, usesSupabaseAuth } from '../../lib/supabase';
 
 export default function LoginPage() {
@@ -12,6 +12,12 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGuestLogin = () => {
+    enableGuestMode();
+    queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+    navigate('/app/overview');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +129,20 @@ export default function LoginPage() {
               className="btn-yellow w-full py-4 text-lg"
             >
               {loading ? 'SIGNING IN...' : 'SIGN IN →'}
+            </button>
+
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-black/20"></div>
+              <span className="flex-shrink mx-4 text-xs font-mono font-bold text-muted-foreground uppercase">Or Explore Instantly</span>
+              <div className="flex-grow border-t border-black/20"></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGuestLogin}
+              className="w-full py-3.5 px-4 bg-white border-2 border-black rounded-sm font-heading font-bold text-sm hover:bg-black hover:text-yellow transition-all shadow-neo-sm"
+            >
+              ⚡ 1-CLICK GUEST / JUDGE ACCESS →
             </button>
           </form>
 
