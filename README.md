@@ -461,3 +461,4 @@ The optional `npm run db:seed` command is intended for disposable demo databases
 [Open the App](https://shocklens.vercel.app) • [Browse the Code](https://github.com/darshankreddy7507/Srujana_hackathon2026_ShockLens)
 
 </div>
+# Srujuna_hackathon2026_ShockLens
