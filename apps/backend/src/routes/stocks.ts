@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { logger } from '../logger';
+import type { YahooChartResponse, YahooSearchResponse } from '../services/yahooTypes';
 
 const router = Router();
 
@@ -51,7 +52,7 @@ async function fetchIndianStock(rawSymbol: string): Promise<StockQuote> {
     throw new Error(`Failed to fetch market data for ${symbol} (status: ${response.status})`);
   }
 
-  const json = await response.json();
+  const json = await response.json() as YahooChartResponse;
   const result = json?.chart?.result?.[0];
   if (!result || !result.meta) {
     throw new Error(`No stock found matching symbol: ${symbol}`);
@@ -146,7 +147,7 @@ router.get('/search', async (req, res, next) => {
       throw new Error('Search provider error');
     }
 
-    const data = await response.json();
+    const data = await response.json() as YahooSearchResponse;
     const quotes = (data.quotes || [])
       .filter((q: { symbol?: string }) => {
         const s = q.symbol || '';

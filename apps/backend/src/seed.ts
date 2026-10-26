@@ -4,6 +4,7 @@
  */
 import prisma from './db';
 import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 import { DEMO_HOLDINGS, DEMO_GOAL } from '@shocklens/shared';
 
 async function seed() {
@@ -57,7 +58,7 @@ async function seed() {
         durationYears: h.durationYears ?? null,
         rateShockSensitivity: h.rateShockSensitivity ?? null,
         exposureTags: h.exposureTags ?? [],
-        historicalValues: null,
+        historicalValues: Prisma.DbNull,
         notes: h.notes ?? null,
       },
     });

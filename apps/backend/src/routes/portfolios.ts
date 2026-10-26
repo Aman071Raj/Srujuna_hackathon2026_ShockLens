@@ -11,6 +11,7 @@ import * as portfolioService from '../services/portfolio.service';
 import Papa from 'papaparse';
 import multer from 'multer';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -77,7 +78,7 @@ router.post('/:id/holdings', requireAuth, validate(CreateHoldingSchema), async (
       durationYears: body.durationYears ?? null,
       rateShockSensitivity: body.rateShockSensitivity ?? null,
       exposureTags: body.exposureTags ?? [],
-      historicalValues: body.historicalValues ?? null,
+      historicalValues: body.historicalValues ?? Prisma.DbNull,
       notes: body.notes ?? null,
     });
     if (!holding) { res.status(404).json({ error: 'Portfolio not found' }); return; }
@@ -135,7 +136,7 @@ router.post('/:id/import', requireAuth, upload.single('file'), async (req, res, 
         durationYears: null,
         rateShockSensitivity: null,
         exposureTags: data.exposureTags ?? [],
-        historicalValues: null,
+        historicalValues: Prisma.DbNull,
         notes: data.notes ?? null,
       });
 

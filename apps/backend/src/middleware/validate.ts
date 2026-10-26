@@ -13,7 +13,7 @@ export function validate<T>(schema: ZodSchema<T>, source: 'body' | 'query' | 'pa
       return;
     }
     // Replace the source with the parsed (and type-coerced) value
-    (req as Record<string, unknown>)[source] = result.data;
+    (req as unknown as Record<string, unknown>)[source] = result.data;
     next();
   };
 }

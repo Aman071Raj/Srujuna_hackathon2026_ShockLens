@@ -11,3 +11,8 @@ node_modules/
 !**/.env.*.example
 
 .work/
+.vercel
+.env*
+
+.vercel
+.env*

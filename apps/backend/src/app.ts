@@ -21,6 +21,8 @@ import butterflyRouter from './routes/butterfly';
 import copilotRouter from './routes/copilot';
 
 const app = express();
+// Vercel terminates HTTPS before forwarding requests to the function.
+if (process.env.VERCEL) app.set('trust proxy', 1);
 
 // ============================================================
 // Security middleware
@@ -37,6 +39,9 @@ app.use(helmet({
 }));
 
 const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173').split(',');
+for (const hostname of [process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_URL]) {
+  if (hostname) allowedOrigins.push(`https://${hostname}`);
+}
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, server-to-server)

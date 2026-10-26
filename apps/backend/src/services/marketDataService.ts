@@ -120,7 +120,7 @@ export class MarketDataService {
   /**
    * Fetches latest market quote + historical closes with strict validation.
    */
-  public async getQuote(symbolOrName: string, range: '1mo' | '3mo' | '1y' | '5y' = '1y'): Promise<MarketQuote> {
+  public async getQuote(symbolOrName: string, range: '1mo' | '3mo' | '6mo' | '1y' | '5y' = '1y'): Promise<MarketQuote> {
     const normalized = this.normalizeSymbol(symbolOrName);
     const cacheKey = `${normalized}:${range}`;
     const cached = quoteCache.get(cacheKey);

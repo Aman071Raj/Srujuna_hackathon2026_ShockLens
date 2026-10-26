@@ -13,7 +13,7 @@
     "declaration": false,
     "sourceMap": true,
     "paths": {
-      "@shocklens/shared": ["../../packages/shared/src/index.ts"]
+      "@shocklens/shared": ["../../packages/shared/dist/index.d.ts"]
     }
   },
   "include": ["src"],

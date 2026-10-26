@@ -15,6 +15,7 @@ import type { ScenarioDefinition } from '@shocklens/shared';
 import * as portfolioService from '../services/portfolio.service';
 import * as goalService from '../services/goal.service';
 import prisma from '../db';
+import type { Prisma } from '@prisma/client';
 
 const router = Router();
 
@@ -34,7 +35,7 @@ router.post('/exposure', requireAuth, validate(ExposureAnalysisRequestSchema), a
         portfolioId,
         type: 'exposure',
         inputJson: { portfolioId },
-        resultJson: result as unknown as Record<string, unknown>,
+        resultJson: result as unknown as Prisma.InputJsonObject,
       },
     });
 
@@ -62,8 +63,8 @@ router.post('/scenario', requireAuth, validate(ScenarioAnalysisRequestSchema), a
       data: {
         portfolioId,
         type: 'scenario',
-        inputJson: { portfolioId, goalId, scenario } as Record<string, unknown>,
-        resultJson: result as unknown as Record<string, unknown>,
+        inputJson: { portfolioId, goalId, scenario } as unknown as Prisma.InputJsonObject,
+        resultJson: result as unknown as Prisma.InputJsonObject,
       },
     });
 
@@ -176,8 +177,8 @@ router.post('/compare', requireAuth, validate(CompareAllocationsRequestSchema), 
       data: {
         portfolioId,
         type: 'comparison',
-        inputJson: req.body as Record<string, unknown>,
-        resultJson: result as unknown as Record<string, unknown>,
+        inputJson: req.body as Prisma.InputJsonObject,
+        resultJson: result as unknown as Prisma.InputJsonObject,
       },
     });
 

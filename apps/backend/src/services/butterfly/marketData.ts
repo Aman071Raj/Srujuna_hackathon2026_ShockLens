@@ -1,5 +1,6 @@
 import { MacroIndicator } from './types';
 import { logger } from '../../logger';
+import type { YahooChartResponse } from '../yahooTypes';
 
 // Cache macro quotes for 60 seconds to respect rate limits
 const cache = new Map<string, { data: MacroIndicator; expiry: number }>();
@@ -34,7 +35,7 @@ export async function fetchMacroIndicator(symbol: string): Promise<MacroIndicato
       throw new Error(`Data provider status ${res.status} for ${symbol}`);
     }
 
-    const json = await res.json();
+    const json = await res.json() as YahooChartResponse;
     const meta = json?.chart?.result?.[0]?.meta;
     if (!meta) throw new Error(`Empty metadata for ${symbol}`);
 
