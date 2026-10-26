@@ -26,7 +26,7 @@ A change in oil prices, interest rates, exchange rates, or market sentiment can 
 The application combines portfolio management, shared calculation logic, external market data, and scenario modeling. Its analysis presents estimated impacts alongside transmission paths, assumptions, and data freshness information.
 
 **Live application:** [shocklens.vercel.app](https://shocklens.vercel.app)
-**Source code:** [Srujana_hackathon2026_ShockLens](https://github.com/darshankreddy7507/Srujana_hackathon2026_ShockLens)
+**Source code:** [Srujana_hackathon2026_ShockLens](https://github.com/Aman071Raj/Srujuna_hackathon2026_ShockLens.git)
 
 ---
 
